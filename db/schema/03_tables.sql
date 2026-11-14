@@ -11,7 +11,7 @@ CREATE TABLE konev_food.client (
     client_id UUID PRIMARY KEY DEFAULT exts.uuid_generate_v4(),
     login VARCHAR(100) NOT NULL UNIQUE,
     password VARCHAR(32) NOT NULL,
-    phone_number CHAR(11) NOT NULL UNIQUE
+    phone_number CHAR(11) NOT NULL UNIQUE,
     CONSTRAINT chk_client_password_md5
         CHECK (password ~ '^[0-9a-fA-F]{32}$')
 );

@@ -164,13 +164,13 @@ declare
     v_new_type konev_food.review_entity_type;
 begin
     -- При UPDATE или DELETE запоминаем старый объект отзыва
-    if TG_OP in ('update', 'delete') then
+    if TG_OP in ('UPDATE', 'DELETE') then
         v_old_id := old.entity_id;
         v_old_type := old.entity_type;
     end if;
 
     -- При UPDATE или INSERT запоминаем новый объект отзыва
-    if TG_OP in ('update', 'insert') then
+    if TG_OP in ('UPDATE', 'INSERT') then
         v_new_id := new.entity_id;
         v_new_type := new.entity_type;
     end if;
@@ -219,7 +219,7 @@ begin
         where restaurant_id = v_new_id;
     end if;
 
-    if TG_OP = 'delete' then
+    if TG_OP = 'DELETE' then
         return old;
     end if;
 
@@ -282,11 +282,11 @@ returns trigger
 language plpgsql
 as $$
 begin
-    if TG_OP = 'delete' then
+    if TG_OP = 'DELETE' then
         perform konev_food.refresh_order_pay_status(old.order_id);
         return old;
 
-    elsif TG_OP = 'update' then
+    elsif TG_OP = 'UPDATE' then
         if old.order_id is distinct from new.order_id then
             perform konev_food.refresh_order_pay_status(old.order_id);
         end if;
@@ -333,3 +333,32 @@ before update of total_amount
 on konev_food."order"
 for each row
 execute function konev_food.check_order_total_change();
+
+
+-- 8. Запрет смены ресторана у товара, используемого в заказах
+
+CREATE OR REPLACE FUNCTION konev_food.check_product_restaurant_change()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF NEW.restaurant_id IS DISTINCT FROM OLD.restaurant_id
+       AND EXISTS (
+           SELECT 1
+           FROM konev_food.order_structure os
+           WHERE os.product_id = OLD.product_id
+       )
+    THEN
+        RAISE EXCEPTION
+            'Нельзя изменить ресторан товара: товар уже используется в заказах';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_check_product_restaurant_change
+BEFORE UPDATE OF restaurant_id
+ON konev_food.product
+FOR EACH ROW
+EXECUTE FUNCTION konev_food.check_product_restaurant_change();

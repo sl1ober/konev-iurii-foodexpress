@@ -1,4 +1,3 @@
-
 CREATE OR REPLACE FUNCTION konev_food.rating_change()
 RETURNS trigger
 LANGUAGE plpgsql
